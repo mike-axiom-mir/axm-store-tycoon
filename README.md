@@ -44,3 +44,5 @@ This is a **Godot 4 project**. A Web export is built automatically in GitHub Act
 ## Continuous visual test loop
 
 GitHub Actions builds a Web export, launches it in Chromium with Playwright, captures a real rendered screenshot, and uploads the screenshot + browser build as workflow artifacts. This is the shared visual evidence loop for iteration; a green code-only build is not treated as visual proof.
+
+Current source body is stored in `bootstrap/axm-store-tycoon-source.zip` so CI can reproduce the exact package while we iterate. Future passes can progressively expose the source tree directly once the loop is stable.
