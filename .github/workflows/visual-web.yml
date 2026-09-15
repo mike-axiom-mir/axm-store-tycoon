@@ -39,6 +39,41 @@ jobs:
           test -s game/scripts/game.gd
           test -s game/ci/visual-test.mjs
 
+      - name: Apply Godot 4.3 strict typing corrections
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          customer = Path('game/scripts/customer.gd')
+          text = customer.read_text()
+          old = '\tvar direction := delta_pos / max(distance, 0.001)'
+          new = '\tvar direction: Vector3 = delta_pos / maxf(distance, 0.001)'
+          if old not in text:
+              raise SystemExit('customer strict-typing patch target missing')
+          customer.write_text(text.replace(old, new))
+
+          game = Path('game/scripts/game.gd')
+          text = game.read_text()
+          replacements = [
+              ('\tvar moved := min(capacity, int(batch["qty"]))',
+               '\tvar moved: int = mini(capacity, int(batch["qty"]))'),
+              ('\tvar levels := [0.63,1.04,1.45,1.85] if cooled else [0.36,0.86,1.36,1.86]\n\tvar per_row := 4 if cooled else 3\n\tvar max_visuals := min(qty,16 if cooled else 12)',
+               '\tvar levels: Array[float] = []\n\tif cooled:\n\t\tlevels = [0.63, 1.04, 1.45, 1.85]\n\telse:\n\t\tlevels = [0.36, 0.86, 1.36, 1.86]\n\tvar per_row: int = 4 if cooled else 3\n\tvar max_visuals: int = mini(qty, 16 if cooled else 12)'),
+              ('\t\tvar y := levels[min(row,levels.size()-1)]',
+               '\t\tvar y: float = levels[mini(row, levels.size() - 1)]'),
+              ('\tvar remaining_age := max(0.0,float(product["expiry"]) - float(batch.get("age",0.0)))',
+               '\tvar remaining_age: float = maxf(0.0, float(product["expiry"]) - float(batch.get("age", 0.0)))'),
+              ('\t\t\tvar remain := max(0.0,float(p["expiry"]) - float(batch["age"]))',
+               '\t\t\tvar remain: float = maxf(0.0, float(p["expiry"]) - float(batch["age"]))'),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'game strict-typing patch target missing: {old}')
+              text = text.replace(old, new)
+          game.write_text(text)
+          PY
+
       - name: Install Godot 4.3 + export templates
         shell: bash
         run: |
@@ -55,16 +90,26 @@ jobs:
           mv templates/* "$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATE_DIR}/"
 
       - name: Import project in real Godot runtime
-        run: godot --headless --editor --path game --quit
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --editor --path game --quit 2>&1 | tee /tmp/godot-import.log
+          if grep -E "SCRIPT ERROR|Failed to load script|Parse Error" /tmp/godot-import.log; then
+            echo "Godot reported script errors during import"
+            exit 1
+          fi
 
       - name: Export Web build
+        shell: bash
         run: |
-          mkdir -p game/web game/visual-evidence
-          godot --headless --path game --export-release "Web" game/web/index.html
-          touch game/web/.nojekyll
-          test -s game/web/index.html
-          test -s game/web/index.wasm
-          test -s game/web/index.pck
+          set -euxo pipefail
+          cd game
+          mkdir -p web visual-evidence
+          godot --headless --path . --export-release "Web" web/index.html 2>&1 | tee visual-evidence/godot-export.log
+          touch web/.nojekyll
+          test -s web/index.html
+          test -s web/index.wasm
+          test -s web/index.pck
 
       - name: Install Chromium visual probe
         run: |
@@ -85,6 +130,7 @@ jobs:
           cd game
           node ci/visual-test.mjs
           cp /tmp/axm-store-http.log visual-evidence/http.log || true
+          cp /tmp/godot-import.log visual-evidence/godot-import.log || true
 
       - name: Upload visual evidence
         if: always()
