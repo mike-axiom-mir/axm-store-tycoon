@@ -1,0 +1,118 @@
+name: Godot Web + Visual Evidence
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: axm-store-tycoon-web-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.3-stable
+  GODOT_TEMPLATE_DIR: 4.3.stable
+
+jobs:
+  build-and-see:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Expand current game body
+        run: |
+          mkdir -p game
+          unzip -q bootstrap/axm-store-tycoon-source.zip -d game
+          test -s game/project.godot
+
+      - name: Install Godot 4.3 + export templates
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}_linux.x86_64" "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+          curl -fsSL -o templates.tpz "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          unzip -q templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATE_DIR}"
+          mv templates/* "$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATE_DIR}/"
+
+      - name: Import project in real Godot runtime
+        run: godot --headless --editor --path game --quit
+
+      - name: Export Web build
+        run: |
+          mkdir -p game/web game/visual-evidence
+          godot --headless --path game --export-release "Web" game/web/index.html
+          touch game/web/.nojekyll
+          test -s game/web/index.html
+          test -s game/web/index.wasm
+          test -s game/web/index.pck
+
+      - name: Install Chromium visual probe
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Serve and capture real rendered frame
+        shell: bash
+        run: |
+          python3 -m http.server 8060 --directory game/web >/tmp/axm-store-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:8060/index.html >/dev/null && break
+            sleep 1
+          done
+          cd game
+          node ci/visual-test.mjs
+
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: axm-store-tycoon-visual-evidence
+          path: |
+            game/visual-evidence/
+            /tmp/axm-store-http.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload browser build
+        uses: actions/upload-artifact@v4
+        with:
+          name: axm-store-tycoon-web
+          path: game/web/
+          retention-days: 14
+
+      - name: Package Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: game/web/
+
+  deploy-pages:
+    if: github.event_name != 'pull_request'
+    needs: build-and-see
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy live browser build
+        id: deployment
+        uses: actions/deploy-pages@v4
