@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/exterior_read_pass9.gd" id="9_exterior_read"]
 [ext_resource type="Script" path="res://scripts/retail_detail_pass10.gd" id="10_retail"]
 [ext_resource type="Script" path="res://scripts/close_range_pass11.gd" id="11_close_range"]
+[ext_resource type="Script" path="res://scripts/surface_balance_pass12.gd" id="12_surface"]
 
 [sub_resource type="CapsuleShape3D" id="Capsule_player"]
 radius = 0.34
@@ -45,6 +46,9 @@ script = ExtResource("10_retail")
 
 [node name="CloseRangePass11" type="Node" parent="."]
 script = ExtResource("11_close_range")
+
+[node name="SurfaceBalancePass12" type="Node" parent="."]
+script = ExtResource("12_surface")
 
 [node name="Player" type="CharacterBody3D" parent="."]
 position = Vector3(3.70, 0, -4.65)
