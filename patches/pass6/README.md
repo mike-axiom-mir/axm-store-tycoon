@@ -7,4 +7,9 @@ Atlas tiles, left to right:
 2. `mir-aged-ivory-aaa`
 3. `axiom-pale-ceramic-aaa`
 
-Channels: base color, normal, roughness, metallic. CI reconstructs the small native-map ZIP from chunked base64 text before Godot imports the project.
+Channels: base color, normal, roughness, metallic.
+
+Verified reconstructed atlas ZIP SHA-256:
+`6f8cee3c61416138229a5334c58213fad531b0fe7d9ab40efc667ac93aeb6b10`
+
+CI reconstructs the atlas from small verified text chunks, checks the SHA-256 and ZIP integrity, then imports the maps into Godot.
