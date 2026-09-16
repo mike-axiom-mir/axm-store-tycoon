@@ -102,6 +102,18 @@ jobs:
           grep -q '_rebuild_side_wall_bays' game/scripts/window_fix.gd
           grep -q 'depth_draw_alpha_prepass' game/scripts/window_fix.gd
 
+      - name: Apply Pass 7 camera-visible roadside composition
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp patches/pass7/exterior_pass7.gd game/scripts/exterior_pass7.gd
+          cp patches/pass6/main.tscn game/main.tscn
+          test -s game/scripts/exterior_pass7.gd
+          grep -q 'ExteriorPass7' game/main.tscn
+          grep -q 'P7NeighborGarage' game/scripts/exterior_pass7.gd
+          grep -q 'P7FrontPump' game/scripts/exterior_pass7.gd
+          grep -q 'P7ParkedVan' game/scripts/exterior_pass7.gd
+
       - name: Install Godot 4.3 + export templates
         shell: bash
         run: |
