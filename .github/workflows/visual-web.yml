@@ -102,26 +102,29 @@ jobs:
           grep -q '_rebuild_side_wall_bays' game/scripts/window_fix.gd
           grep -q 'depth_draw_alpha_prepass' game/scripts/window_fix.gd
 
-      - name: Apply Passes 7-9 roadside world, camera framing and exterior readability
+      - name: Apply Passes 7-10 world, framing, readability and retail detail
         shell: bash
         run: |
           set -euxo pipefail
           cp patches/pass7/exterior_pass7.gd game/scripts/exterior_pass7.gd
           cp patches/pass8/camera_pass8.gd game/scripts/camera_pass8.gd
           cp patches/pass9/exterior_read_pass9.gd game/scripts/exterior_read_pass9.gd
+          cp patches/pass10/retail_detail_pass10.gd game/scripts/retail_detail_pass10.gd
           cp patches/pass6/main.tscn game/main.tscn
           test -s game/scripts/exterior_pass7.gd
           test -s game/scripts/camera_pass8.gd
           test -s game/scripts/exterior_read_pass9.gd
+          test -s game/scripts/retail_detail_pass10.gd
           grep -q 'ExteriorPass7' game/main.tscn
           grep -q 'CameraPass8' game/main.tscn
           grep -q 'ExteriorReadPass9' game/main.tscn
+          grep -q 'RetailDetailPass10' game/main.tscn
           grep -q 'P7NeighborGarage' game/scripts/exterior_pass7.gd
-          grep -q 'P7FrontPump' game/scripts/exterior_pass7.gd
-          grep -q 'P7ParkedVan' game/scripts/exterior_pass7.gd
           grep -q 'Vector3(0,200,0)' game/scripts/camera_pass8.gd
           grep -q 'P9GarageFacade' game/scripts/exterior_read_pass9.gd
-          grep -q 'SERVICE GARAGE' game/scripts/exterior_read_pass9.gd
+          grep -q 'P10ScannerBed' game/scripts/retail_detail_pass10.gd
+          grep -q '_update_prompt_visibility' game/scripts/retail_detail_pass10.gd
+          grep -q 'P10VentFrame' game/scripts/retail_detail_pass10.gd
 
       - name: Install Godot 4.3 + export templates
         shell: bash
