@@ -12,6 +12,7 @@ script = ExtResource("1_game")
 
 [node name="Player" type="CharacterBody3D" parent="."]
 position = Vector3(0.2, 0, 4.35)
+rotation_degrees = Vector3(0, 180, 0)
 collision_layer = 2
 collision_mask = 1
 script = ExtResource("2_player")
