@@ -1,0 +1,134 @@
+	# Counter edge glow + front inset.
+	var counter := _find_first(root,"CheckoutCounter") as Node3D
+	if counter:
+		_box_local(counter,"P4CounterPanel",Vector3(0,0.54,-0.455),Vector3(1.35,0.54,0.025),_surface(Color(0.035,0.14,0.12),0.34,0.05,fine_noise,5.0))
+		_box_local(counter,"P4CounterGlow",Vector3(0,1.035,-0.49),Vector3(1.90,0.022,0.025),orange)
+	_add_station_canopy(dark,copper,warm)
+	_label("FRESH  •  LOCAL  •  CURIOUS",Vector3(0,2.17,-5.80),Vector3(0,0,0),34,Color(1.0,0.78,0.46))
+
+func _add_station_canopy(dark: Material, copper: Material, warm: Material) -> void:
+	_box("P4Canopy",Vector3(2.25,3.0,7.75),Vector3(4.4,0.22,2.45),dark)
+	_box("P4CanopyTrim",Vector3(2.25,2.86,6.58),Vector3(4.4,0.08,0.08),copper)
+	_box("P4CanopyGlow",Vector3(2.25,2.83,7.75),Vector3(3.35,0.035,1.35),warm)
+	for x in [0.45,4.05]:
+		_cylinder("P4CanopyPost",Vector3(x,1.45,7.75),0.085,2.9,dark,20)
+	for x in [0.30,4.20]:
+		_cylinder("P4Bollard",Vector3(x,0.48,6.70),0.10,0.96,_surface(Color(0.92,0.53,0.09),0.55,0.03,fine_noise,5.0),20)
+	# Second pump silhouette; enough to read as a station without importing an asset.
+	_box("P4Pump2",Vector3(1.35,1.08,7.72),Vector3(0.78,2.08,0.68),_surface(Color(0.72,0.12,0.09),0.42,0.03,fine_noise,5.0))
+	_box("P4Pump2Face",Vector3(1.35,1.43,7.37),Vector3(0.45,0.62,0.035),_surface(Color(0.88,0.84,0.74),0.48,0.01,soft_noise,4.0))
+	_box("P4Pump2Screen",Vector3(1.35,1.68,7.34),Vector3(0.30,0.22,0.025),_emissive(Color(0.10,0.76,0.86),1.25))
+
+func _polish_hud() -> void:
+	var panels: Array[PanelContainer] = []
+	_collect_panels(root,panels)
+	for panel in panels:
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.018,0.026,0.030,0.70)
+		style.border_color = Color(0.55,0.24,0.12,0.82)
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(16)
+		style.shadow_color = Color(0,0,0,0.30)
+		style.shadow_size = 9
+		panel.add_theme_stylebox_override("panel",style)
+
+func _surface(color: Color, roughness: float, metallic: float, texture: Texture2D, scale: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = roughness
+	material.metallic = metallic
+	material.albedo_texture = texture
+	material.uv1_scale = Vector3(scale,scale,scale)
+	return material
+
+func _emissive(color: Color, energy: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.16
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = energy
+	return material
+
+func _make_noise_texture(size: int, strength: float, seed: int) -> ImageTexture:
+	var image := Image.create(size,size,false,Image.FORMAT_RGBA8)
+	for y in range(size):
+		for x in range(size):
+			var raw := sin(float(x * 127 + y * 311 + seed * 71)) * 43758.5453
+			var n := abs(raw - floor(raw))
+			var v := clamp(1.0 - strength + n * strength,0.0,1.0)
+			image.set_pixel(x,y,Color(v,v,v,1.0))
+	return ImageTexture.create_from_image(image)
+
+func _box(node_name: String, pos: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.position = pos
+	root.add_child(instance)
+	return instance
+
+func _box_local(parent: Node3D, node_name: String, pos: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.position = pos
+	parent.add_child(instance)
+	return instance
+
+func _cylinder(node_name: String, pos: Vector3, radius: float, height: float, material: Material, segments: int) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = segments
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.position = pos
+	root.add_child(instance)
+	return instance
+
+func _label(text: String, pos: Vector3, rot: Vector3, size: int, color: Color) -> void:
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = size
+	label.modulate = color
+	label.outline_size = 5
+	label.position = pos
+	label.rotation_degrees = rot
+	root.add_child(label)
+
+func _find_first(node: Node, target: String) -> Node:
+	if String(node.name) == target:
+		return node
+	for child in node.get_children():
+		var found := _find_first(child,target)
+		if found:
+			return found
+	return null
+
+func _collect_named(node: Node, target: String, out: Array[Node]) -> void:
+	if String(node.name) == target:
+		out.append(node)
+	for child in node.get_children():
+		_collect_named(child,target,out)
+
+func _collect_meshes(node: Node, out: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		out.append(node as MeshInstance3D)
+	for child in node.get_children():
+		_collect_meshes(child,out)
+
+func _collect_panels(node: Node, out: Array[PanelContainer]) -> void:
+	if node is PanelContainer:
+		out.append(node as PanelContainer)
+	for child in node.get_children():
+		_collect_panels(child,out)
