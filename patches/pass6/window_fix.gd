@@ -23,24 +23,19 @@ func _restore_storefront_glass() -> void:
 			mesh.visible = true
 
 func _restore_side_windows() -> void:
-	# Pass 6's side cladding made the shop read like a sealed showroom.
-	# Keep collision intact, but hide the old visual shell and every auto-renamed P6 side skin.
-	for target in ["WallLeftVisual","WallRightVisual"]:
-		var wall := _find_first(root,target) as MeshInstance3D
-		if wall:
-			wall.visible = false
-	_hide_all_prefixed(root,"P6SidePanel")
-	_hide_all_prefixed(root,"P6SideFrame")
+	# Hide side-wall/cladding geometry by shape/position instead of generated node names.
+	# This preserves collision bodies while removing only the broad visual skin.
+	_hide_side_cladding_geometry(root)
 
-	var glass := _glass_material(Color(0.34,0.58,0.74,0.12),0.055)
+	var glass := _glass_material(Color(0.30,0.56,0.76,0.075),0.045)
 	var frame := StandardMaterial3D.new()
-	frame.albedo_color = Color(0.035,0.045,0.055)
-	frame.roughness = 0.30
-	frame.metallic = 0.70
+	frame.albedo_color = Color(0.028,0.038,0.050)
+	frame.roughness = 0.28
+	frame.metallic = 0.74
 	var sill := StandardMaterial3D.new()
-	sill.albedo_color = Color(0.09,0.13,0.14)
-	sill.roughness = 0.58
-	sill.metallic = 0.12
+	sill.albedo_color = Color(0.07,0.10,0.11)
+	sill.roughness = 0.62
+	sill.metallic = 0.10
 
 	for side in [-1,1]:
 		var x: float = float(side) * 5.03
@@ -52,31 +47,46 @@ func _restore_side_windows() -> void:
 			var frame_z: float = z + 0.77
 			_box("SideFrame",Vector3(x - float(side) * 0.012,1.53,frame_z),Vector3(0.075,1.92,0.055),frame)
 
+func _hide_side_cladding_geometry(node: Node) -> void:
+	if node is MeshInstance3D:
+		var instance := node as MeshInstance3D
+		var box := instance.mesh as BoxMesh
+		if box:
+			var p: Vector3 = instance.position
+			var s: Vector3 = box.size
+			var at_side: bool = absf(p.x) >= 4.95 and absf(p.x) <= 5.35
+			var full_wall: bool = s.y >= 2.8 and s.z >= 10.0
+			var p6_panel: bool = s.x <= 0.15 and s.y >= 1.8 and s.z >= 1.20 and s.z <= 1.60 and p.y >= 1.20 and p.y <= 1.55
+			if at_side and (full_wall or p6_panel):
+				instance.visible = false
+	for child in node.get_children():
+		_hide_side_cladding_geometry(child)
+
 func _tone_exterior() -> void:
 	var world := root.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world and world.environment:
 		var env := world.environment
-		env.background_color = Color(0.22,0.40,0.62)
-		env.ambient_light_color = Color(0.62,0.70,0.78)
-		env.ambient_light_energy = 0.54
+		env.background_color = Color(0.18,0.36,0.60)
+		env.ambient_light_color = Color(0.60,0.69,0.78)
+		env.ambient_light_energy = 0.52
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 0.91
-		env.adjustment_contrast = 1.06
-		env.adjustment_saturation = 1.02
+		env.adjustment_brightness = 0.89
+		env.adjustment_contrast = 1.07
+		env.adjustment_saturation = 1.03
 	var sun := root.get_node_or_null("ExteriorSoftLight") as DirectionalLight3D
 	if sun:
-		sun.light_energy = 0.46
-		sun.light_color = Color(0.75,0.84,0.96)
+		sun.light_energy = 0.44
+		sun.light_color = Color(0.73,0.83,0.96)
 
 func _add_outside_depth() -> void:
 	var grass := StandardMaterial3D.new()
-	grass.albedo_color = Color(0.11,0.22,0.12)
+	grass.albedo_color = Color(0.09,0.20,0.11)
 	grass.roughness = 0.96
 	var concrete := StandardMaterial3D.new()
-	concrete.albedo_color = Color(0.32,0.34,0.35)
+	concrete.albedo_color = Color(0.29,0.31,0.33)
 	concrete.roughness = 0.90
 	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.05,0.07,0.09)
+	dark.albedo_color = Color(0.045,0.06,0.08)
 	dark.roughness = 0.75
 	# Give the side windows actual world depth instead of empty sky.
 	_box("OutsideGroundL",Vector3(-7.3,-0.13,-0.5),Vector3(4.2,0.18,13.0),grass)
@@ -90,11 +100,11 @@ func _glass_material(color: Color, roughness: float) -> StandardMaterial3D:
 	glass.albedo_color = color
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass.roughness = roughness
-	glass.metallic = 0.06
+	glass.metallic = 0.05
 	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
 	glass.emission_enabled = true
-	glass.emission = Color(0.03,0.06,0.08)
-	glass.emission_energy_multiplier = 0.08
+	glass.emission = Color(0.025,0.05,0.07)
+	glass.emission_energy_multiplier = 0.06
 	return glass
 
 func _box(node_name: String, pos: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
@@ -116,9 +126,3 @@ func _find_first(node: Node, target: String) -> Node:
 		if found:
 			return found
 	return null
-
-func _hide_all_prefixed(node: Node, prefix: String) -> void:
-	if String(node.name).begins_with(prefix) and node is MeshInstance3D:
-		(node as MeshInstance3D).visible = false
-	for child in node.get_children():
-		_hide_all_prefixed(child,prefix)
