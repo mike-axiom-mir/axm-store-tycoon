@@ -39,41 +39,6 @@ jobs:
           test -s game/scripts/game.gd
           test -s game/ci/visual-test.mjs
 
-      - name: Apply Godot 4.3 strict typing corrections
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          customer = Path('game/scripts/customer.gd')
-          text = customer.read_text()
-          old = '\tvar direction := delta_pos / max(distance, 0.001)'
-          new = '\tvar direction: Vector3 = delta_pos / maxf(distance, 0.001)'
-          if old not in text:
-              raise SystemExit('customer strict-typing patch target missing')
-          customer.write_text(text.replace(old, new))
-
-          game = Path('game/scripts/game.gd')
-          text = game.read_text()
-          replacements = [
-              ('\tvar moved := min(capacity, int(batch["qty"]))',
-               '\tvar moved: int = mini(capacity, int(batch["qty"]))'),
-              ('\tvar levels := [0.63,1.04,1.45,1.85] if cooled else [0.36,0.86,1.36,1.86]\n\tvar per_row := 4 if cooled else 3\n\tvar max_visuals := min(qty,16 if cooled else 12)',
-               '\tvar levels: Array[float] = []\n\tif cooled:\n\t\tlevels = [0.63, 1.04, 1.45, 1.85]\n\telse:\n\t\tlevels = [0.36, 0.86, 1.36, 1.86]\n\tvar per_row: int = 4 if cooled else 3\n\tvar max_visuals: int = mini(qty, 16 if cooled else 12)'),
-              ('\t\tvar y := levels[min(row,levels.size()-1)]',
-               '\t\tvar y: float = levels[mini(row, levels.size() - 1)]'),
-              ('\tvar remaining_age := max(0.0,float(product["expiry"]) - float(batch.get("age",0.0)))',
-               '\tvar remaining_age: float = maxf(0.0, float(product["expiry"]) - float(batch.get("age", 0.0)))'),
-              ('\t\t\tvar remain := max(0.0,float(p["expiry"]) - float(batch["age"]))',
-               '\t\t\tvar remain: float = maxf(0.0, float(p["expiry"]) - float(batch["age"]))'),
-          ]
-          for old, new in replacements:
-              if old not in text:
-                  raise SystemExit(f'game strict-typing patch target missing: {old}')
-              text = text.replace(old, new)
-          game.write_text(text)
-          PY
-
       - name: Install Godot 4.3 + export templates
         shell: bash
         run: |
