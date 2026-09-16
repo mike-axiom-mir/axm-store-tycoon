@@ -1,0 +1,169 @@
+	if shelf_id < 0 or shelf_id >= shelf_states.size():
+		return
+	var state = shelf_states[shelf_id]
+	var visual_root: Node3D = state["visuals"]
+	for child in visual_root.get_children():
+		child.queue_free()
+	var stock: Dictionary = state["stock"]
+	if stock.is_empty():
+		return
+	var p = products[stock["product_id"]]
+	var qty := int(stock["qty"])
+	var cooled := bool(state["cooled"])
+	var levels: Array[float] = []
+	if cooled:
+		levels = [0.63, 1.04, 1.45, 1.85]
+	else:
+		levels = [0.36, 0.86, 1.36, 1.86]
+	var per_row: int = 4 if cooled else 3
+	var max_visuals: int = mini(qty, 16 if cooled else 12)
+	for i in range(max_visuals):
+		var row := int(i / per_row)
+		var col := i % per_row
+		var x_spacing := 0.28 if cooled else 0.36
+		var x := (float(col) - float(per_row-1)*0.5) * x_spacing
+		var z := -0.31 if cooled else -0.18
+		var y: float = levels[mini(row, levels.size() - 1)]
+		_add_product_visual(visual_root, p, Vector3(x,y,z), i)
+	# Price/discount stripe with 3D color cue.
+	var stripe_color := Color(0.75,0.12,0.08) if int(stock.get("discount",0)) >= 25 else Color(0.09,0.42,0.24)
+	var stripe := _add_box_visual_local(visual_root,"PriceStripe",Vector3(0,2.19 if not cooled else 2.19,-0.34 if not cooled else -0.47),Vector3(1.20,0.08,0.035),_material(stripe_color,0.55))
+	stripe.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+func _add_product_visual(parent: Node3D, p: Dictionary, pos: Vector3, seed_index: int) -> void:
+	var instance := MeshInstance3D.new()
+	var shape: String = p["shape"]
+	if shape == "can":
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 0.085
+		mesh.bottom_radius = 0.085
+		mesh.height = 0.25
+		instance.mesh = mesh
+	elif shape == "round":
+		var mesh := SphereMesh.new()
+		mesh.radius = 0.105
+		mesh.height = 0.21
+		instance.mesh = mesh
+	else:
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.20,0.27,0.13)
+		instance.mesh = mesh
+	var color: Color = p["color"]
+	var jitter := float((seed_index % 3) - 1) * 0.035
+	instance.material_override = _material(color.lightened(max(0.0,jitter)).darkened(max(0.0,-jitter)),0.58)
+	instance.position = pos
+	parent.add_child(instance)
+
+func _update_interaction_ui() -> void:
+	if prompt_label == null:
+		return
+	var target := _ray_target()
+	if target.is_empty():
+		prompt_label.text = ""
+		target_label.text = ""
+		return
+	match target["kind"]:
+		"order":
+			prompt_label.text = "E / A  Order mystery supplier crate  •  €%.2f" % _current_order_cost()
+			target_label.text = "RNG stock: common → uncommon → rare"
+		"crate":
+			prompt_label.text = "E / A  Open delivery crate"
+			target_label.text = "Contents are still hidden"
+		"upgrade":
+			var next := _next_upgrade()
+			if next.is_empty():
+				prompt_label.text = "All v0.1 upgrades installed"
+				target_label.text = "Tiny Mart is fully upgraded for this slice"
+			else:
+				prompt_label.text = "E / A  Buy %s  •  €%.0f" % [next["name"],float(next["cost"])]
+				target_label.text = next["desc"]
+		"shelf":
+			var id := int(target["id"])
+			if id >= 0 and id < shelf_states.size():
+				var stock: Dictionary = shelf_states[id]["stock"]
+				if stock.is_empty():
+					prompt_label.text = "E / A  Stock this shelf from selected back-room lot"
+					target_label.text = "EMPTY" + ("  •  COOLED" if shelf_states[id]["cooled"] else "")
+				else:
+					var p = products[stock["product_id"]]
+					var remain := _fresh_minutes(stock,p,bool(shelf_states[id]["cooled"]))
+					prompt_label.text = "E / A top up   •   Q / X cycle discount"
+					target_label.text = "%s  ×%d  •  %d%% off  •  %s fresh" % [p["name"],int(stock["qty"]),int(stock.get("discount",0)),_format_duration(remain)]
+
+func _fresh_minutes(batch: Dictionary, product: Dictionary, cooled: bool) -> float:
+	var remaining_age: float = maxf(0.0, float(product["expiry"]) - float(batch.get("age", 0.0)))
+	return remaining_age / (0.35 if cooled else 1.0)
+
+func _update_all_ui() -> void:
+	_update_stats_ui()
+	_update_inventory_ui()
+	_update_order_pad_label()
+
+func _update_stats_ui() -> void:
+	if stats_label == null:
+		return
+	var hour := int(game_minutes / 60)
+	var minute := int(game_minutes) % 60
+	stats_label.text = "DAY %d   %02d:%02d\n€%.2f cash   •   Rep %.1f/100\nSales %d   •   Waste €%.2f" % [day,hour,minute,cash,reputation,total_sales,waste_value]
+	if event_label:
+		event_label.text = current_event
+
+func _update_inventory_ui() -> void:
+	if inventory_label == null:
+		return
+	_normalize_selected_stock()
+	var lines: Array[String] = ["BACK ROOM  •  R / Y cycles"]
+	if backroom.is_empty():
+		lines.append("Empty")
+	else:
+		for i in range(min(backroom.size(),5)):
+			var batch = backroom[i]
+			var p = products[batch["product_id"]]
+			var marker := "▶ " if i == selected_backroom else "   "
+			var remain: float = maxf(0.0, float(p["expiry"]) - float(batch["age"]))
+			lines.append("%s%d× %s  [%s]  %s" % [marker,int(batch["qty"]),p["name"],String(p["rarity"]).substr(0,1).to_upper(),_format_duration(remain)])
+		if backroom.size() > 5:
+			lines.append("… +%d more lots" % (backroom.size()-5))
+	inventory_label.text = "\n".join(lines)
+
+func _update_order_pad_label() -> void:
+	if order_pad_label:
+		order_pad_label.text = "SUPPLIER PAD\n€%.0f CRATE" % _current_order_cost()
+
+func _format_duration(minutes: float) -> String:
+	if minutes < 60.0:
+		return "%dm" % int(ceil(minutes))
+	if minutes < 1440.0:
+		return "%.1fh" % (minutes / 60.0)
+	return "%.1fd" % (minutes / 1440.0)
+
+func _toast(message: String, seconds: float = 3.2) -> void:
+	if toast_label:
+		toast_label.text = message
+	toast_timer = seconds
+
+func _play_sound(cue: String) -> void:
+	if audio_player == null:
+		return
+	# Procedural one-shot tones keep the game portable, including Web CI builds.
+	var frequencies := {"sale": 880.0, "crate": 520.0, "alert": 220.0, "upgrade": 660.0, "day": 440.0}
+	var frequency: float = frequencies.get(cue, 440.0)
+	var sample_rate := 22050
+	var duration := 0.11 if cue != "day" else 0.18
+	var sample_count := int(sample_rate * duration)
+	var data := PackedByteArray()
+	data.resize(sample_count * 2)
+	for i in range(sample_count):
+		var t := float(i) / float(sample_rate)
+		var envelope := 1.0 - (float(i) / float(sample_count))
+		var sample := sin(TAU * frequency * t) * 0.18 * envelope
+		var pcm := int(clamp(sample, -1.0, 1.0) * 32767.0)
+		data[i * 2] = pcm & 0xff
+		data[i * 2 + 1] = (pcm >> 8) & 0xff
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.stereo = false
+	stream.data = data
+	audio_player.stream = stream
+	audio_player.play()

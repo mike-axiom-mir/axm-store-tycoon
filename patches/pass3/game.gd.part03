@@ -1,0 +1,137 @@
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.position = pos
+	parent.add_child(instance)
+	return instance
+
+func _add_box_static(node_name: String, pos: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
+	var visual := _add_box_visual(node_name + "Visual", pos, size, material)
+	var body := StaticBody3D.new()
+	body.name = node_name + "Body"
+	body.position = pos
+	body.collision_layer = 1
+	body.collision_mask = 0
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	add_child(body)
+	return visual
+
+func _instantiate_prop(_path: String, node_name: String, pos: Vector3, rot_y: float) -> Node3D:
+	var holder := Node3D.new()
+	holder.name = node_name
+	holder.position = pos
+	holder.rotation.y = rot_y
+	add_child(holder)
+	_build_procedural_prop(holder, node_name)
+	return holder
+
+func _build_procedural_prop(holder: Node3D, node_name: String) -> void:
+	var wood := _material(Color(0.33,0.19,0.10),0.68)
+	var wood_light := _material(Color(0.56,0.34,0.17),0.62)
+	var steel := _material(Color(0.24,0.27,0.28),0.42,0.18)
+	var black := _material(Color(0.035,0.045,0.048),0.40,0.10)
+	var blue := _material(Color(0.10,0.42,0.58),0.42,0.08)
+	var cyan := _material(Color(0.16,0.82,0.90),0.28,0.04)
+	var orange := _material(Color(0.92,0.45,0.10),0.58)
+	match node_name:
+		"RetailShelf":
+			_add_box_visual_local(holder,"Back",Vector3(0,0.96,0.18),Vector3(1.36,1.90,0.07),steel)
+			_add_box_visual_local(holder,"LeftPost",Vector3(-0.66,0.96,0),Vector3(0.08,1.94,0.60),black)
+			_add_box_visual_local(holder,"RightPost",Vector3(0.66,0.96,0),Vector3(0.08,1.94,0.60),black)
+			for y in [0.18,0.56,0.94,1.32,1.70]:
+				_add_box_visual_local(holder,"ShelfBoard",Vector3(0,y,-0.02),Vector3(1.32,0.07,0.58),mat_cream)
+				_add_box_visual_local(holder,"ShelfLip",Vector3(0,y + 0.05,-0.29),Vector3(1.28,0.022,0.035),mat_trim)
+			_add_box_visual_local(holder,"TopTrim",Vector3(0,1.94,0.10),Vector3(1.50,0.14,0.18),mat_green)
+			_add_box_visual_local(holder,"LeftFoot",Vector3(-0.50,0.04,0),Vector3(0.18,0.06,0.46),mat_rubber)
+			_add_box_visual_local(holder,"RightFoot",Vector3(0.50,0.04,0),Vector3(0.18,0.06,0.46),mat_rubber)
+		"FridgeShelf":
+			_add_box_visual_local(holder,"FridgeBody",Vector3(0,1.10,0.16),Vector3(1.72,2.20,0.60),black)
+			_add_box_visual_local(holder,"ColdBack",Vector3(0,1.10,0.01),Vector3(1.50,1.85,0.05),blue)
+			_add_box_visual_local(holder,"Glass",Vector3(0,1.12,-0.33),Vector3(1.48,1.82,0.035),mat_glass)
+			for y in [0.43,0.88,1.33,1.78]:
+				_add_box_visual_local(holder,"ColdShelf",Vector3(0,y,-0.12),Vector3(1.42,0.04,0.38),steel)
+			_add_box_visual_local(holder,"ColdHeader",Vector3(0,2.16,-0.08),Vector3(1.70,0.17,0.42),cyan)
+		"CheckoutCounter":
+			_add_box_visual_local(holder,"CounterBase",Vector3(0,0.48,0),Vector3(2.15,0.96,0.92),wood)
+			_add_box_visual_local(holder,"CounterTop",Vector3(0,1.01,0),Vector3(2.30,0.11,1.02),mat_cream)
+			_add_box_visual_local(holder,"Belt",Vector3(-0.36,1.075,-0.02),Vector3(1.10,0.025,0.62),black)
+			_add_box_visual_local(holder,"Register",Vector3(0.60,1.18,0.05),Vector3(0.42,0.25,0.42),steel)
+			_add_box_visual_local(holder,"Screen",Vector3(0.60,1.45,-0.02),Vector3(0.34,0.34,0.07),cyan)
+			_add_box_visual_local(holder,"FrontAccent",Vector3(0,0.55,-0.48),Vector3(1.70,0.16,0.03),mat_trim)
+			_add_box_visual_local(holder,"KickRail",Vector3(0,0.08,-0.45),Vector3(1.82,0.09,0.03),steel)
+		"UpgradeTerminal":
+			_add_box_visual_local(holder,"Pedestal",Vector3(0,-0.52,0),Vector3(0.46,1.10,0.42),black)
+			_add_box_visual_local(holder,"Head",Vector3(0,0.08,0),Vector3(0.72,0.72,0.30),steel)
+			_add_box_visual_local(holder,"Screen",Vector3(0,0.10,-0.17),Vector3(0.55,0.46,0.035),cyan)
+			_add_box_visual_local(holder,"Badge",Vector3(0,-0.25,-0.18),Vector3(0.24,0.08,0.025),orange)
+		"FeatureStand":
+			_add_box_visual_local(holder,"StandBase",Vector3(0,0.42,0),Vector3(0.88,0.84,0.88),wood_light)
+			_add_box_visual_local(holder,"StandTop",Vector3(0,0.88,0),Vector3(0.96,0.10,0.96),mat_cream)
+			for x in [-0.22,0.0,0.22]:
+				_add_box_visual_local(holder,"DisplayBox",Vector3(x,1.06,0),Vector3(0.16,0.22,0.16),orange)
+		"GasPump":
+			_add_box_visual_local(holder,"PumpBase",Vector3(0,0.10,0),Vector3(1.08,0.20,1.00),mat_rubber)
+			_add_box_visual_local(holder,"PumpBody",Vector3(0,1.10,0),Vector3(0.86,2.10,0.72),_material(Color(0.84,0.18,0.14),0.50))
+			_add_box_visual_local(holder,"PumpInset",Vector3(0,1.32,-0.37),Vector3(0.48,0.70,0.04),mat_cream)
+			_add_box_visual_local(holder,"PumpScreen",Vector3(0,1.66,-0.39),Vector3(0.34,0.28,0.035),cyan)
+			_add_box_visual_local(holder,"PumpStripe",Vector3(0,0.64,-0.38),Vector3(0.78,0.08,0.035),mat_line)
+			_add_box_visual_local(holder,"HosePost",Vector3(0.35,1.30,0.0),Vector3(0.08,1.55,0.08),black)
+			_add_box_visual_local(holder,"HoseHandle",Vector3(0.35,1.78,0.26),Vector3(0.08,0.26,0.22),black)
+		"TrashBin":
+			_add_box_visual_local(holder,"BinBody",Vector3(0,0.50,0),Vector3(0.72,1.0,0.72),_material(Color(0.20,0.30,0.26),0.80))
+			_add_box_visual_local(holder,"BinLid",Vector3(0,1.05,0),Vector3(0.80,0.10,0.80),mat_dark)
+		"Planter":
+			_add_box_visual_local(holder,"Pot",Vector3(0,0.34,0),Vector3(0.74,0.68,0.74),_material(Color(0.43,0.23,0.16),0.88))
+			_add_box_visual_local(holder,"PlantStem",Vector3(0,1.10,0),Vector3(0.10,0.95,0.10),_material(Color(0.22,0.42,0.18),0.88))
+			_add_box_visual_local(holder,"LeafA",Vector3(-0.18,1.48,0.0),Vector3(0.36,0.12,0.12),_material(Color(0.28,0.58,0.22),0.78))
+			_add_box_visual_local(holder,"LeafB",Vector3(0.18,1.34,0.0),Vector3(0.36,0.12,0.12),_material(Color(0.20,0.52,0.20),0.78))
+		"DeliveryCrate":
+			_add_box_visual_local(holder,"CrateBody",Vector3(0,0.42,0),Vector3(1.08,0.78,0.90),wood_light)
+			_add_box_visual_local(holder,"CrateTop",Vector3(0,0.84,0),Vector3(1.14,0.10,0.96),wood)
+			for x in [-0.45,0.45]:
+				_add_box_visual_local(holder,"CornerPost",Vector3(x,0.44,0),Vector3(0.08,0.82,0.94),black)
+			for z in [-0.38,0.38]:
+				_add_box_visual_local(holder,"Band",Vector3(0,0.44,z),Vector3(1.12,0.10,0.07),orange)
+		_:
+			_add_box_visual_local(holder,"GenericProp",Vector3(0,0.5,0),Vector3(1,1,1),steel)
+
+func _add_prop_collision(holder: Node3D, size: Vector3, local_pos: Vector3, kind: String, id: int) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = kind.capitalize() + "InteractBody"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.set_meta("interact_kind", kind)
+	body.set_meta("interact_id", id)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	collision.position = local_pos
+	body.add_child(collision)
+	holder.add_child(body)
+	return body
+
+func _advance_minutes(minutes: int) -> void:
+	if minutes <= 0:
+		return
+	game_minutes += minutes
+	_age_stock(float(minutes))
+	if game_minutes >= DAY_END:
+		_close_day()
+
+func _age_stock(minutes: float) -> void:
+	var expired_backroom: Array[int] = []
+	for i in range(backroom.size()):
+		backroom[i]["age"] = float(backroom[i].get("age",0.0)) + minutes
+		var product = products[backroom[i]["product_id"]]
+		if float(backroom[i]["age"]) >= float(product["expiry"]):
+			expired_backroom.append(i)
+	for j in range(expired_backroom.size() - 1, -1, -1):
+		var idx := expired_backroom[j]
+		_waste_batch(backroom[idx], "expired in the back room")
+		backroom.remove_at(idx)

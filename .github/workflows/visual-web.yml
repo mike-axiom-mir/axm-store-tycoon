@@ -26,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Reconstruct and verify game body
+      - name: Reconstruct proven game body
         shell: bash
         run: |
           set -euxo pipefail
@@ -38,6 +38,20 @@ jobs:
           test -s game/project.godot
           test -s game/scripts/game.gd
           test -s ci/visual-test.mjs
+
+      - name: Apply Pass 3 text overrides
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat patches/pass3/game.gd.part* > game/scripts/game.gd
+          cp patches/pass3/customer.gd game/scripts/customer.gd
+          cp patches/pass3/main.tscn game/main.tscn
+          test -s game/scripts/game.gd
+          test -s game/scripts/customer.gd
+          test -s game/main.tscn
+          grep -q 'AXM MINI MART' game/scripts/game.gd
+          grep -q 'GasPump' game/scripts/game.gd
+          grep -q 'Vector3(0.2, 0, 4.35)' game/main.tscn
 
       - name: Install Godot 4.3 + export templates
         shell: bash
