@@ -77,6 +77,25 @@ jobs:
           grep -q 'ambient-occlusion' patches/pass5/README.md || true
           grep -q 'VisualPass5' game/main.tscn
 
+      - name: Apply Pass 6 native Monolith PBR atlas
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat patches/pass6/atlas.b64.part* > /tmp/pass6-atlas.b64
+          base64 --decode /tmp/pass6-atlas.b64 > /tmp/pass6-native-material-atlas.zip
+          unzip -t /tmp/pass6-native-material-atlas.zip
+          mkdir -p game/assets/pass6
+          unzip -q -j /tmp/pass6-native-material-atlas.zip -d game/assets/pass6
+          cp patches/pass6/visual_pass6.gd game/scripts/visual_pass6.gd
+          cp patches/pass6/main.tscn game/main.tscn
+          test -s game/assets/pass6/material-atlas_basecolor.png
+          test -s game/assets/pass6/material-atlas_normal.png
+          test -s game/assets/pass6/material-atlas_roughness.png
+          test -s game/assets/pass6/material-atlas_metallic.png
+          test -s game/scripts/visual_pass6.gd
+          grep -q 'VisualPass6' game/main.tscn
+          grep -q 'material-atlas_basecolor.png' game/scripts/visual_pass6.gd
+
       - name: Install Godot 4.3 + export templates
         shell: bash
         run: |
