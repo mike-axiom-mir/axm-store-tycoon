@@ -137,9 +137,10 @@ func _add_outside_depth() -> void:
 
 func _glass_material(tint: Color, base_alpha: float, fresnel_alpha: float) -> ShaderMaterial:
 	var shader := Shader.new()
+	# depth_draw_alpha_prepass is the old Godot 3 spelling; Godot 4 WebGL uses depth_prepass_alpha.
 	shader.code = """
 shader_type spatial;
-render_mode blend_mix, depth_draw_alpha_prepass, cull_disabled;
+render_mode blend_mix, depth_prepass_alpha, cull_disabled;
 uniform vec4 tint_color : source_color = vec4(0.12, 0.19, 0.24, 1.0);
 uniform float base_alpha = 0.16;
 uniform float fresnel_alpha = 0.34;
