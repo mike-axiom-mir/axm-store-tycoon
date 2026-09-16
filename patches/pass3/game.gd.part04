@@ -1,0 +1,212 @@
+	for i in range(shelf_states.size()):
+		var state = shelf_states[i]
+		if state["stock"].is_empty():
+			continue
+		var factor := 0.35 if bool(state["cooled"]) else 1.0
+		state["stock"]["age"] = float(state["stock"].get("age",0.0)) + minutes * factor
+		var product = products[state["stock"]["product_id"]]
+		if float(state["stock"]["age"]) >= float(product["expiry"]):
+			_waste_batch(state["stock"], "expired on a shelf")
+			state["stock"] = {}
+			_refresh_shelf_visual(i)
+	_normalize_selected_stock()
+
+func _waste_batch(batch: Dictionary, reason: String) -> void:
+	var product = products[batch["product_id"]]
+	var qty := int(batch.get("qty",0))
+	var loss := float(product["buy"]) * qty
+	waste_value += loss
+	_play_sound("alert")
+	reputation = max(0.0, reputation - min(3.5, 0.35 * qty))
+	_toast("Waste: %d × %s %s. -€%.2f value." % [qty, product["name"], reason, loss], 4.0)
+
+func _current_order_cost() -> float:
+	return max(16.0, 28.0 * (1.0 - event_order_discount))
+
+func _order_crate() -> void:
+	if not delivery_pending.is_empty() or delivery_crate_holder != null:
+		_toast("A supplier crate is already waiting on the pad.")
+		return
+	var cost := _current_order_cost()
+	if cash < cost:
+		_toast("You need €%.2f to order another mystery crate." % cost)
+		return
+	cash -= cost
+	_play_sound("crate")
+	delivery_pending = _generate_crate()
+	_spawn_delivery_crate()
+	_toast("Mystery supplier crate delivered. Open it to reveal the stock.")
+	_update_all_ui()
+
+func _generate_crate() -> Array[Dictionary]:
+	var lots: Array[Dictionary] = []
+	var used: Dictionary = {}
+	for _slot in range(3):
+		var product_id := _pick_product_id(used)
+		used[product_id] = true
+		var p = products[product_id]
+		var low := 5 if p["rarity"] == "rare" else 6
+		var high := 7 if p["rarity"] == "rare" else (9 if p["rarity"] == "uncommon" else 11)
+		lots.append({"product_id":product_id, "qty":rng.randi_range(low,high), "age":0.0})
+	return lots
+
+func _pick_product_id(used: Dictionary) -> String:
+	var weighted: Array[Dictionary] = []
+	var total := 0
+	var tier_bonus := int(floor(reputation / 25.0)) + (2 if upgrades["scanner"] else 0)
+	for id in product_order:
+		if used.has(id):
+			continue
+		var rarity: String = products[id]["rarity"]
+		var weight := 72 if rarity == "common" else (23 if rarity == "uncommon" else 5)
+		if rarity == "uncommon": weight += tier_bonus * 5
+		if rarity == "rare": weight += tier_bonus * 2
+		weighted.append({"id":id,"weight":weight})
+		total += weight
+	var roll := rng.randi_range(1,max(total,1))
+	var running := 0
+	for item in weighted:
+		running += int(item["weight"])
+		if roll <= running:
+			return item["id"]
+	return product_order[0]
+
+func _spawn_delivery_crate() -> void:
+	if delivery_crate_holder != null:
+		delivery_crate_holder.queue_free()
+	delivery_crate_holder = _instantiate_prop("res://assets/axm_props/delivery_crate/delivery_crate.gltf", "DeliveryCrate", Vector3(-3.65,0.12,3.25), 0.0)
+	_add_prop_collision(delivery_crate_holder, Vector3(1.15,0.78,0.9), Vector3(0,0.38,0), "crate", -1)
+
+func _open_crate() -> void:
+	if delivery_pending.is_empty():
+		_toast("The crate is empty.")
+		return
+	_play_sound("crate")
+	var reveal: Array[String] = []
+	for batch in delivery_pending:
+		backroom.append(batch.duplicate(true))
+		var p = products[batch["product_id"]]
+		reveal.append("%d× %s [%s]" % [int(batch["qty"]), p["name"], String(p["rarity"]).to_upper()])
+	delivery_pending.clear()
+	if delivery_crate_holder:
+		delivery_crate_holder.queue_free()
+		delivery_crate_holder = null
+	_normalize_selected_stock()
+	_toast("Crate opened: " + "  •  ".join(reveal), 6.0)
+	_update_all_ui()
+
+func _stock_shelf(shelf_id: int) -> void:
+	if shelf_id < 0 or shelf_id >= shelf_states.size():
+		return
+	_normalize_selected_stock()
+	if backroom.is_empty():
+		_toast("Back room is empty. Order and open a supplier crate first.")
+		return
+	if selected_backroom >= backroom.size():
+		selected_backroom = 0
+	var batch := backroom[selected_backroom]
+	var state = shelf_states[shelf_id]
+	if not state["stock"].is_empty() and state["stock"]["product_id"] != batch["product_id"]:
+		_toast("That shelf already holds %s. Sell or waste it before switching products." % products[state["stock"]["product_id"]]["name"])
+		return
+	var existing_qty := int(state["stock"].get("qty",0)) if not state["stock"].is_empty() else 0
+	var capacity := (16 if bool(state["cooled"]) else 12) - existing_qty
+	if capacity <= 0:
+		_toast("That shelf is already full.")
+		return
+	var moved: int = mini(capacity, int(batch["qty"]))
+	if state["stock"].is_empty():
+		state["stock"] = {"product_id":batch["product_id"], "qty":moved, "age":float(batch["age"]), "discount":0}
+	else:
+		state["stock"]["qty"] = existing_qty + moved
+		state["stock"]["age"] = max(float(state["stock"]["age"]), float(batch["age"]))
+	batch["qty"] = int(batch["qty"]) - moved
+	if int(batch["qty"]) <= 0:
+		backroom.remove_at(selected_backroom)
+	_normalize_selected_stock()
+	_refresh_shelf_visual(shelf_id)
+	_toast("Stocked %d × %s." % [moved, products[state["stock"]["product_id"]]["name"]])
+	_update_all_ui()
+
+func _cycle_selected_stock() -> void:
+	_normalize_selected_stock()
+	if backroom.size() <= 1:
+		if backroom.is_empty():
+			_toast("No stock in the back room.")
+		return
+	selected_backroom = (selected_backroom + 1) % backroom.size()
+	var batch := backroom[selected_backroom]
+	_toast("Selected: %d × %s" % [int(batch["qty"]), products[batch["product_id"]]["name"]], 2.0)
+	_update_inventory_ui()
+
+func _normalize_selected_stock() -> void:
+	var i := backroom.size() - 1
+	while i >= 0:
+		if int(backroom[i].get("qty",0)) <= 0:
+			backroom.remove_at(i)
+		i -= 1
+	if backroom.is_empty():
+		selected_backroom = 0
+	else:
+		selected_backroom = clamp(selected_backroom,0,backroom.size()-1)
+
+func _discount_target() -> void:
+	var target := _ray_target()
+	if target.is_empty() or target["kind"] != "shelf":
+		_toast("Look at a stocked shelf to change its discount.", 2.3)
+		return
+	var shelf_id := int(target["id"])
+	if shelf_id < 0 or shelf_id >= shelf_states.size():
+		return
+	var stock: Dictionary = shelf_states[shelf_id]["stock"]
+	if stock.is_empty():
+		_toast("That shelf is empty.")
+		return
+	var steps := [0,10,25,50]
+	var current := int(stock.get("discount",0))
+	var index := steps.find(current)
+	stock["discount"] = steps[(index + 1) % steps.size()]
+	_refresh_shelf_visual(shelf_id)
+	var p = products[stock["product_id"]]
+	_toast("%s discount: %d%%" % [p["name"], int(stock["discount"])], 2.5)
+
+func _interact() -> void:
+	if day_transition_timer > 0.0:
+		return
+	var target := _ray_target()
+	if target.is_empty():
+		return
+	match target["kind"]:
+		"order":
+			_order_crate()
+		"crate":
+			_open_crate()
+		"shelf":
+			_stock_shelf(int(target["id"]))
+		"upgrade":
+			_buy_next_upgrade()
+
+func _ray_target() -> Dictionary:
+	if ray == null:
+		return {}
+	ray.force_raycast_update()
+	if not ray.is_colliding():
+		return {}
+	var collider = ray.get_collider()
+	if collider == null or not collider.has_meta("interact_kind"):
+		return {}
+	return {"kind":String(collider.get_meta("interact_kind")), "id":int(collider.get_meta("interact_id",-1))}
+
+func _buy_next_upgrade() -> void:
+	var next := _next_upgrade()
+	if next.is_empty():
+		_toast("Every v0.1 store upgrade is already installed.")
+		return
+	var cost := float(next["cost"])
+	if cash < cost:
+		_toast("%s costs €%.0f. You currently have €%.2f." % [next["name"], cost, cash])
+		return
+	cash -= cost
+	upgrades[next["id"]] = true
+	_play_sound("upgrade")
+	_apply_upgrade(String(next["id"]))
