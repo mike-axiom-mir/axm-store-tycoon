@@ -99,7 +99,8 @@ jobs:
           grep -q 'VisualPass6' game/main.tscn
           grep -q 'WindowRestore' game/main.tscn
           grep -q 'material-atlas_basecolor.png' game/scripts/visual_pass6.gd
-          grep -q '_restore_side_windows' game/scripts/window_fix.gd
+          grep -q '_rebuild_side_wall_bays' game/scripts/window_fix.gd
+          grep -q 'depth_draw_alpha_prepass' game/scripts/window_fix.gd
 
       - name: Install Godot 4.3 + export templates
         shell: bash
