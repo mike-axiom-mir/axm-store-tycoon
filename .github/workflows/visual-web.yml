@@ -102,7 +102,7 @@ jobs:
           grep -q '_rebuild_side_wall_bays' game/scripts/window_fix.gd
           grep -q 'depth_draw_alpha_prepass' game/scripts/window_fix.gd
 
-      - name: Apply Passes 7-11 world, retail detail and close-range refinement
+      - name: Apply Passes 7-12 world, fixtures and surface balance
         shell: bash
         run: |
           set -euxo pipefail
@@ -111,22 +111,26 @@ jobs:
           cp patches/pass9/exterior_read_pass9.gd game/scripts/exterior_read_pass9.gd
           cp patches/pass10/retail_detail_pass10.gd game/scripts/retail_detail_pass10.gd
           cp patches/pass11/close_range_pass11.gd game/scripts/close_range_pass11.gd
+          cp patches/pass12/surface_balance_pass12.gd game/scripts/surface_balance_pass12.gd
           cp patches/pass6/main.tscn game/main.tscn
           test -s game/scripts/exterior_pass7.gd
           test -s game/scripts/camera_pass8.gd
           test -s game/scripts/exterior_read_pass9.gd
           test -s game/scripts/retail_detail_pass10.gd
           test -s game/scripts/close_range_pass11.gd
+          test -s game/scripts/surface_balance_pass12.gd
           grep -q 'ExteriorPass7' game/main.tscn
           grep -q 'CameraPass8' game/main.tscn
           grep -q 'ExteriorReadPass9' game/main.tscn
           grep -q 'RetailDetailPass10' game/main.tscn
           grep -q 'CloseRangePass11' game/main.tscn
+          grep -q 'SurfaceBalancePass12' game/main.tscn
           grep -q 'P10ScannerBed' game/scripts/retail_detail_pass10.gd
           grep -q '_update_prompt_visibility' game/scripts/retail_detail_pass10.gd
           grep -q 'P11KioskHead' game/scripts/close_range_pass11.gd
           grep -q 'P11VisibleWallRail' game/scripts/close_range_pass11.gd
-          grep -q '_compact_top_hud' game/scripts/close_range_pass11.gd
+          grep -q 'P12RetailFloor' game/scripts/surface_balance_pass12.gd
+          grep -q '_repair_hud_hierarchy' game/scripts/surface_balance_pass12.gd
 
       - name: Install Godot 4.3 + export templates
         shell: bash
