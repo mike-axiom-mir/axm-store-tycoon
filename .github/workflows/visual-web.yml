@@ -39,19 +39,31 @@ jobs:
           test -s game/scripts/game.gd
           test -s ci/visual-test.mjs
 
-      - name: Apply Pass 3 text overrides
+      - name: Apply Pass 3 gameplay/store overrides
         shell: bash
         run: |
           set -euxo pipefail
           cat patches/pass3/game.gd.part* > game/scripts/game.gd
           cp patches/pass3/customer.gd game/scripts/customer.gd
-          cp patches/pass3/main.tscn game/main.tscn
           test -s game/scripts/game.gd
           test -s game/scripts/customer.gd
-          test -s game/main.tscn
           grep -q 'AXM MINI MART' game/scripts/game.gd
           grep -q 'GasPump' game/scripts/game.gd
-          grep -q 'Vector3(0.2, 0, 4.35)' game/main.tscn
+
+      - name: Apply Pass 4 modern visual overlay
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat patches/pass4/visual_pass4.gd.part* > game/scripts/visual_pass4.gd
+          cp patches/pass4/main.tscn game/main.tscn
+          cp patches/pass4/project.godot game/project.godot
+          test -s game/scripts/visual_pass4.gd
+          test -s game/main.tscn
+          test -s game/project.godot
+          grep -q 'P4Canopy' game/scripts/visual_pass4.gd
+          grep -q 'P4CounterGlow' game/scripts/visual_pass4.gd
+          grep -q 'VisualPass4' game/main.tscn
+          grep -q 'msaa_3d=2' game/project.godot
 
       - name: Install Godot 4.3 + export templates
         shell: bash
