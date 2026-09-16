@@ -51,12 +51,12 @@ func _emissive(color: Color, energy: float) -> StandardMaterial3D:
 	return material
 
 func _make_noise_texture(size: int, strength: float, seed: int) -> ImageTexture:
-	var image := Image.create(size,size,false,Image.FORMAT_RGBA8)
+	var image: Image = Image.create(size,size,false,Image.FORMAT_RGBA8)
 	for y in range(size):
 		for x in range(size):
-			var raw := sin(float(x * 127 + y * 311 + seed * 71)) * 43758.5453
-			var n := abs(raw - floor(raw))
-			var v := clamp(1.0 - strength + n * strength,0.0,1.0)
+			var raw: float = sin(float(x * 127 + y * 311 + seed * 71)) * 43758.5453
+			var n: float = absf(raw - floor(raw))
+			var v: float = clampf(1.0 - strength + n * strength,0.0,1.0)
 			image.set_pixel(x,y,Color(v,v,v,1.0))
 	return ImageTexture.create_from_image(image)
 
@@ -110,7 +110,7 @@ func _find_first(node: Node, target: String) -> Node:
 	if String(node.name) == target:
 		return node
 	for child in node.get_children():
-		var found := _find_first(child,target)
+		var found: Node = _find_first(child,target)
 		if found:
 			return found
 	return null
