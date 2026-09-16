@@ -65,6 +65,18 @@ jobs:
           grep -q 'VisualPass4' game/main.tscn
           grep -q 'msaa_3d=2' game/project.godot
 
+      - name: Apply Pass 5 AXM Material Surface Fabric
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp patches/pass5/visual_pass5.gd game/scripts/visual_pass5.gd
+          cp patches/pass5/main.tscn game/main.tscn
+          test -s game/scripts/visual_pass5.gd
+          test -s game/main.tscn
+          grep -q 'brushed-steel' game/scripts/visual_pass5.gd
+          grep -q 'ambient-occlusion' patches/pass5/README.md || true
+          grep -q 'VisualPass5' game/main.tscn
+
       - name: Install Godot 4.3 + export templates
         shell: bash
         run: |
