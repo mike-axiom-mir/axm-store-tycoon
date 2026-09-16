@@ -24,13 +24,13 @@ func _restore_storefront_glass() -> void:
 
 func _restore_side_windows() -> void:
 	# Pass 6's side cladding made the shop read like a sealed showroom.
-	# Keep collision intact, but hide the old visual shell and the P6 side skin.
+	# Keep collision intact, but hide the old visual shell and every auto-renamed P6 side skin.
 	for target in ["WallLeftVisual","WallRightVisual"]:
 		var wall := _find_first(root,target) as MeshInstance3D
 		if wall:
 			wall.visible = false
-	_hide_all_named(root,"P6SidePanel")
-	_hide_all_named(root,"P6SideFrame")
+	_hide_all_prefixed(root,"P6SidePanel")
+	_hide_all_prefixed(root,"P6SideFrame")
 
 	var glass := _glass_material(Color(0.34,0.58,0.74,0.12),0.055)
 	var frame := StandardMaterial3D.new()
@@ -117,8 +117,8 @@ func _find_first(node: Node, target: String) -> Node:
 			return found
 	return null
 
-func _hide_all_named(node: Node, target: String) -> void:
-	if String(node.name) == target and node is MeshInstance3D:
+func _hide_all_prefixed(node: Node, prefix: String) -> void:
+	if String(node.name).begins_with(prefix) and node is MeshInstance3D:
 		(node as MeshInstance3D).visible = false
 	for child in node.get_children():
-		_hide_all_named(child,target)
+		_hide_all_prefixed(child,prefix)
