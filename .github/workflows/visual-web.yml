@@ -37,7 +37,7 @@ jobs:
           unzip -q /tmp/axm-store-source.zip -d game
           test -s game/project.godot
           test -s game/scripts/game.gd
-          test -s game/ci/visual-test.mjs
+          test -s ci/visual-test.mjs
 
       - name: Install Godot 4.3 + export templates
         shell: bash
@@ -92,10 +92,9 @@ jobs:
             curl -fsS http://127.0.0.1:8060/index.html >/dev/null && break
             sleep 1
           done
-          cd game
           node ci/visual-test.mjs
-          cp /tmp/axm-store-http.log visual-evidence/http.log || true
-          cp /tmp/godot-import.log visual-evidence/godot-import.log || true
+          cp /tmp/axm-store-http.log game/visual-evidence/http.log || true
+          cp /tmp/godot-import.log game/visual-evidence/godot-import.log || true
 
       - name: Upload visual evidence
         if: always()
