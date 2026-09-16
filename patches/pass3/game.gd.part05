@@ -1,0 +1,203 @@
+	reputation = min(100.0, reputation + 3.0)
+	_toast("Upgrade installed: %s" % next["name"], 4.5)
+	_update_all_ui()
+
+func _next_upgrade() -> Dictionary:
+	for upgrade in upgrade_plan:
+		if not bool(upgrades[upgrade["id"]]):
+			return upgrade
+	return {}
+
+func _apply_upgrade(id: String) -> void:
+	match id:
+		"lighting":
+			for pos in [Vector3(-2.5,2.65,-0.6),Vector3(0,2.65,-0.6),Vector3(2.5,2.65,-0.6),Vector3(0,2.65,2.9)]:
+				var pendant := OmniLight3D.new()
+				pendant.position = pos
+				pendant.omni_range = 4.5
+				pendant.light_color = Color(1.0,0.78,0.48)
+				pendant.light_energy = 0.78
+				upgraded_lights_root.add_child(pendant)
+				_add_box_visual_local(upgraded_lights_root,"Pendant",pos + Vector3(0,0.18,0),Vector3(0.42,0.10,0.42),mat_dark)
+		"side_shelf":
+			_create_shelf(Vector3(3.95,0,-0.75), PI/2.0, false, "shelf")
+		"fridge":
+			_create_shelf(Vector3(-3.95,0,-0.45), -PI/2.0, true, "fridge")
+		"neon":
+			store_sign_panel.material_override = _material(Color(0.035,0.12,0.09),0.28,0.12)
+			store_sign_label.text = "TINY MART  ✦"
+			store_sign_label.modulate = Color(0.30,1.0,0.69)
+			var neon_light := OmniLight3D.new()
+			neon_light.position = Vector3(0,2.7,5.2)
+			neon_light.omni_range = 4.0
+			neon_light.light_color = Color(0.22,1.0,0.61)
+			neon_light.light_energy = 1.0
+			add_child(neon_light)
+		"decor":
+			_build_decor()
+		"scanner":
+			upgrade_label.modulate = Color(0.96,0.72,0.20)
+			upgrade_label.text = "RARITY SCANNER ONLINE"
+
+func _build_decor() -> void:
+	var rug_mat := _material(Color(0.48,0.16,0.11),0.92)
+	_add_box_visual_local(decor_root,"Rug",Vector3(0,0.018,1.15),Vector3(3.0,0.025,2.15),rug_mat)
+	for p in [Vector3(-4.25,0,4.65),Vector3(4.25,0,-4.65)]:
+		var pot := MeshInstance3D.new()
+		var pot_mesh := CylinderMesh.new()
+		pot_mesh.top_radius = 0.29
+		pot_mesh.bottom_radius = 0.22
+		pot_mesh.height = 0.48
+		pot.mesh = pot_mesh
+		pot.material_override = _material(Color(0.35,0.16,0.08),0.88)
+		pot.position = p + Vector3(0,0.24,0)
+		decor_root.add_child(pot)
+		for angle in [0.0,1.57,3.14,4.71]:
+			var leaf := MeshInstance3D.new()
+			var leaf_mesh := CapsuleMesh.new()
+			leaf_mesh.radius = 0.08
+			leaf_mesh.height = 0.65
+			leaf.mesh = leaf_mesh
+			leaf.material_override = _material(Color(0.12,0.42,0.18),0.86)
+			leaf.position = p + Vector3(cos(angle)*0.16,0.76,sin(angle)*0.16)
+			leaf.rotation_degrees = Vector3(25*cos(angle),0,25*sin(angle))
+			decor_root.add_child(leaf)
+
+func _try_spawn_customer() -> void:
+	if not shop_open or customers.size() >= MAX_CUSTOMERS:
+		return
+	var candidates: Array[int] = []
+	for i in range(shelf_states.size()):
+		if not shelf_states[i]["stock"].is_empty() and int(shelf_states[i]["stock"].get("qty",0)) > 0:
+			candidates.append(i)
+	if candidates.is_empty():
+		return
+	var shelf_id := candidates[rng.randi_range(0,candidates.size()-1)]
+	var customer = CustomerScript.new()
+	customer.clothing_color = Color.from_hsv(rng.randf(), 0.42, 0.72)
+	customer.accent_color = Color.from_hsv(fmod(rng.randf()+0.24,1.0), 0.36, 0.70)
+	add_child(customer)
+	customers.append(customer)
+	customer.begin(self, shelf_id, Vector3(rng.randf_range(-0.7,0.7),0,7.5), Vector3(rng.randf_range(-0.45,0.45),0,4.75))
+
+func _next_customer_interval() -> float:
+	var base := rng.randf_range(5.4,9.6)
+	if upgrades["neon"]: base *= 0.78
+	base /= max(event_customer_mult,0.35)
+	return max(2.8,base)
+
+func get_shelf_browse_position(shelf_id: int) -> Vector3:
+	if shelf_id < 0 or shelf_id >= shelf_states.size():
+		return Vector3(0,0,-2.2)
+	var base: Vector3 = shelf_states[shelf_id]["browse"]
+	return base + Vector3(rng.randf_range(-0.45,0.45),0,rng.randf_range(-0.12,0.12))
+
+func get_counter_customer_position() -> Vector3:
+	return Vector3(2.65,0,1.55) + Vector3(rng.randf_range(-0.25,0.25),0,rng.randf_range(-0.12,0.12))
+
+func get_exit_position() -> Vector3:
+	return Vector3(rng.randf_range(-0.6,0.6),0,7.6)
+
+func customer_attempt_purchase(_customer: Node, shelf_id: int) -> Dictionary:
+	if shelf_id < 0 or shelf_id >= shelf_states.size():
+		return {}
+	var stock: Dictionary = shelf_states[shelf_id]["stock"]
+	if stock.is_empty() or int(stock.get("qty",0)) <= 0:
+		return {}
+	var p = products[stock["product_id"]]
+	var discount := int(stock.get("discount",0))
+	var chance := float(p["demand"])
+	chance += reputation / 250.0
+	chance += {0:0.0,10:0.07,25:0.17,50:0.34}.get(discount,0.0)
+	if upgrades["decor"]: chance += 0.075
+	if event_demand_tag != "" and p["tag"] == event_demand_tag: chance += 0.18
+	chance = clamp(chance,0.16,0.97)
+	if rng.randf() > chance:
+		return {}
+	var product_id: String = stock["product_id"]
+	stock["qty"] = int(stock["qty"]) - 1
+	var price := float(p["sell"]) * (1.0 - float(discount)/100.0)
+	if int(stock["qty"]) <= 0:
+		shelf_states[shelf_id]["stock"] = {}
+	_refresh_shelf_visual(shelf_id)
+	return {"product_id":product_id, "price":price, "color":p["color"], "discount":discount}
+
+func customer_checkout(_customer: Node, purchase: Dictionary) -> void:
+	if purchase.is_empty():
+		return
+	cash += float(purchase["price"])
+	_play_sound("sale")
+	total_sales += 1
+	total_revenue += float(purchase["price"])
+	reputation = min(100.0, reputation + 0.14)
+	if total_sales % 12 == 0:
+		_toast("A regular-customer streak is building. Reputation +1.", 2.8)
+		reputation = min(100.0,reputation + 1.0)
+	_update_all_ui()
+
+func customer_finished(customer: Node) -> void:
+	customers.erase(customer)
+	customer.queue_free()
+
+func _close_day() -> void:
+	if day_transition_timer > 0.0:
+		return
+	shop_open = false
+	_play_sound("day")
+	game_minutes = DAY_END
+	for customer in customers.duplicate():
+		if is_instance_valid(customer):
+			customer.queue_free()
+	customers.clear()
+	var day_sales := total_sales - day_start_sales
+	var day_waste := waste_value - day_start_waste
+	var cash_change := cash - day_start_cash
+	day_summary_label.text = "DAY %d CLOSED\n\nSales: %d\nCash change: %s€%.2f\nWaste value: €%.2f\nReputation: %.1f / 100\n\nTomorrow brings a new supplier/customer event." % [day, day_sales, "+" if cash_change >= 0.0 else "", cash_change, day_waste, reputation]
+	day_summary_panel.visible = true
+	day_transition_timer = 4.5
+
+func _start_next_day() -> void:
+	day += 1
+	game_minutes = DAY_START
+	minute_accumulator = 0.0
+	shop_open = true
+	day_summary_panel.visible = false
+	day_start_cash = cash
+	day_start_waste = waste_value
+	day_start_sales = total_sales
+	_apply_day_event(false)
+	customer_timer = 2.2
+	_toast("Day %d opens. %s" % [day,current_event], 4.0)
+	_update_all_ui()
+
+func _apply_day_event(first_day: bool) -> void:
+	event_customer_mult = 1.0
+	event_demand_tag = ""
+	event_order_discount = 0.0
+	if first_day:
+		current_event = "Opening week: curious locals are checking the new shop."
+		event_customer_mult = 1.12
+	else:
+		var roll := rng.randi_range(0,5)
+		match roll:
+			0:
+				current_event = "Heat wave: drinks are hot sellers today."
+				event_demand_tag = "drink"
+			1:
+				current_event = "Farmers' market spillover: fresh food demand is up."
+				event_demand_tag = "fresh"
+			2:
+				current_event = "Supplier flash sale: mystery crates are 25% cheaper today."
+				event_order_discount = 0.25
+			3:
+				current_event = "Local post went viral: customer traffic is heavier."
+				event_customer_mult = 1.42
+			4:
+				current_event = "Rainy afternoon: quieter foot traffic, pantry demand holds."
+				event_customer_mult = 0.76
+				event_demand_tag = "pantry"
+			5:
+				current_event = "Ordinary Tuesday: no special modifier."
+	_update_order_pad_label()
+
+func _refresh_shelf_visual(shelf_id: int) -> void:
