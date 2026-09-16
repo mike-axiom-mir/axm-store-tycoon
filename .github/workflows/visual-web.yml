@@ -30,9 +30,10 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          unzip -t bootstrap/source.zip
+          base64 --decode bootstrap/source.b64 > /tmp/axm-store-source.zip
+          unzip -t /tmp/axm-store-source.zip
           mkdir -p game
-          unzip -q bootstrap/source.zip -d game
+          unzip -q /tmp/axm-store-source.zip -d game
           test -s game/project.godot
           test -s game/scripts/game.gd
           test -s ci/visual-test.mjs
