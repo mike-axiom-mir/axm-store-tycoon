@@ -81,8 +81,9 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          cat patches/pass6/atlas.b64.part* > /tmp/pass6-atlas.b64
-          base64 --decode --ignore-garbage /tmp/pass6-atlas.b64 > /tmp/pass6-native-material-atlas.zip
+          cat patches/pass6/atlas2.part* > /tmp/pass6-atlas.b64
+          base64 --decode /tmp/pass6-atlas.b64 > /tmp/pass6-native-material-atlas.zip
+          echo "6f8cee3c61416138229a5334c58213fad531b0fe7d9ab40efc667ac93aeb6b10  /tmp/pass6-native-material-atlas.zip" | sha256sum -c -
           unzip -t /tmp/pass6-native-material-atlas.zip
           mkdir -p game/assets/pass6
           unzip -q -j /tmp/pass6-native-material-atlas.zip -d game/assets/pass6
